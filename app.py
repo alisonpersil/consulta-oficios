@@ -136,6 +136,8 @@ def get_safe_file_path(relative_path):
     return safe_path
 
 @app.route("/")
+@app.route("/api/index")
+@app.route("/api/index.py")
 def index():
     """Serve the main chat-inspired application with inlined assets for cloud compatibility."""
     css_path = os.path.join(STATIC_DIR, "css", "style.css")
