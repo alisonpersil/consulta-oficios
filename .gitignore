@@ -37,3 +37,5 @@ test_script.js
 *.swo
 Thumbs.db
 Desktop.ini
+gerar_apresentacao.py
+*.pptx
