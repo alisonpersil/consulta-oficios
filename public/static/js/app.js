@@ -50,14 +50,29 @@ const btnModalDownload = document.getElementById('btnModalDownload');
 const btnModalNewTab = document.getElementById('btnModalNewTab');
 const toastContainer = document.getElementById('toastContainer');
 
+// Share Network Modal Elements
+const btnShareNetwork = document.getElementById('btnShareNetwork');
+const shareModal = document.getElementById('shareModal');
+const btnShareModalClose = document.getElementById('btnShareModalClose');
+const shareNetworkUrlInput = document.getElementById('shareNetworkUrlInput');
+const shareHostnameUrlInput = document.getElementById('shareHostnameUrlInput');
+const btnCopyNetworkUrl = document.getElementById('btnCopyNetworkUrl');
+const btnCopyHostnameUrl = document.getElementById('btnCopyHostnameUrl');
+
 // ==========================================================================
 // Initialization
 // ==========================================================================
-document.addEventListener('DOMContentLoaded', () => {
+function initApp() {
     initTheme();
     loadDocuments();
     setupEventListeners();
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
+}
 
 // ==========================================================================
 // Event Listeners Setup
@@ -99,7 +114,9 @@ function setupEventListeners() {
             searchInput.focus();
             searchInput.select();
         } else if (e.key === 'Escape') {
-            if (!previewModal.classList.contains('hidden')) {
+            if (shareModal && !shareModal.classList.contains('hidden')) {
+                closeShareModal();
+            } else if (!previewModal.classList.contains('hidden')) {
                 closeModal();
             } else if (searchInput.value) {
                 clearSearch();
@@ -175,6 +192,27 @@ function setupEventListeners() {
             downloadDocument(state.activeModalDoc);
         }
     });
+
+    // Share Network Modal Events
+    if (btnShareNetwork) {
+        btnShareNetwork.addEventListener('click', openShareModal);
+    }
+    if (btnShareModalClose) {
+        btnShareModalClose.addEventListener('click', closeShareModal);
+    }
+    if (shareModal) {
+        shareModal.addEventListener('click', (e) => {
+            if (e.target === shareModal) {
+                closeShareModal();
+            }
+        });
+    }
+    if (btnCopyNetworkUrl) {
+        btnCopyNetworkUrl.addEventListener('click', () => copyShareUrl(shareNetworkUrlInput, btnCopyNetworkUrl));
+    }
+    if (btnCopyHostnameUrl) {
+        btnCopyHostnameUrl.addEventListener('click', () => copyShareUrl(shareHostnameUrlInput, btnCopyHostnameUrl));
+    }
 }
 
 // ==========================================================================
@@ -529,6 +567,72 @@ function closeModal() {
     pdfViewerFrame.src = '';
     state.activeModalDoc = null;
     document.body.style.overflow = '';
+}
+
+// ==========================================================================
+// Share Modal Functions
+// ==========================================================================
+async function openShareModal() {
+    if (!shareModal) return;
+    shareModal.classList.remove('hidden');
+    shareModal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+
+    try {
+        const response = await fetch('/api/server-info');
+        if (response.ok) {
+            const data = await response.json();
+            if (shareNetworkUrlInput) shareNetworkUrlInput.value = data.network_url;
+            if (shareHostnameUrlInput) shareHostnameUrlInput.value = data.hostname_url;
+        }
+    } catch (err) {
+        console.error('Erro ao buscar dados do servidor:', err);
+    }
+}
+
+function closeShareModal() {
+    if (!shareModal) return;
+    shareModal.classList.add('hidden');
+    shareModal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+}
+
+function copyShareUrl(inputElement, buttonElement) {
+    if (!inputElement || !buttonElement) return;
+    const url = inputElement.value;
+    if (!url || url.includes('Carregando')) return;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(() => {
+            handleCopiedState(buttonElement);
+        }).catch(() => {
+            fallbackCopy(inputElement, buttonElement);
+        });
+    } else {
+        fallbackCopy(inputElement, buttonElement);
+    }
+}
+
+function fallbackCopy(inputElement, buttonElement) {
+    inputElement.select();
+    inputElement.setSelectionRange(0, 99999);
+    try {
+        document.execCommand('copy');
+        handleCopiedState(buttonElement);
+    } catch (err) {
+        showToast('Não foi possível copiar automaticamente.', 'error');
+    }
+}
+
+function handleCopiedState(buttonElement) {
+    const originalHtml = buttonElement.innerHTML;
+    buttonElement.classList.add('copied');
+    buttonElement.innerHTML = '<i class="fa-solid fa-check"></i> <span>Copiado!</span>';
+    showToast('Link copiado para a área de transferência!', 'success');
+    setTimeout(() => {
+        buttonElement.classList.remove('copied');
+        buttonElement.innerHTML = originalHtml;
+    }, 2500);
 }
 
 // ==========================================================================

@@ -1,15 +1,40 @@
 import os
 import sys
+import socket
 import subprocess
+import threading
+import webbrowser
 import mimetypes
 from datetime import datetime
+
+# Windows Console UTF-8 encoding support
+if sys.platform == "win32":
+    try:
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        if hasattr(sys.stderr, 'reconfigure'):
+            sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
 from flask import Flask, render_template, jsonify, send_file, send_from_directory, request, abort
 
-# Base directory for the files
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# ===================================================================
+# PYINSTALLER COMPATIBILITY: Resolve paths when running as .exe
+# ===================================================================
+def resource_path(relative_path):
+    """Resolve paths both when running as .py and as PyInstaller .exe."""
+    if hasattr(sys, '_MEIPASS'):
+        # Running as compiled .exe bundle
+        return os.path.join(sys._MEIPASS, relative_path)
+    # Running as normal .py script
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), relative_path)
+
+# The docs dir is ALWAYS relative to the exe/script location (not bundled)
+BASE_DIR = os.path.dirname(os.path.abspath(sys.executable if getattr(sys, 'frozen', False) else __file__))
 DOCS_DIR = os.path.join(BASE_DIR, "Base de dados Ofícios")
-STATIC_DIR = os.path.join(BASE_DIR, "static")
-TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
+STATIC_DIR = resource_path("static")
+TEMPLATES_DIR = resource_path("templates")
 
 app = Flask(
     __name__,
@@ -17,6 +42,13 @@ app = Flask(
     static_folder=STATIC_DIR,
     static_url_path="/static"
 )
+
+@app.after_request
+def add_cors_headers(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    return response
 
 def format_file_size(size_bytes):
     """Format bytes to human-readable string (KB, MB)."""
@@ -31,14 +63,12 @@ def extract_category_and_year(filename):
     """Categorize document and extract reference year if present."""
     name_lower = filename.lower()
     
-    # Year extraction
     year = None
     for y in ["2026", "2025", "2024", "2023", "2022", "2021", "2020"]:
         if y in name_lower:
             year = y
             break
             
-    # Category detection
     if "ofício" in name_lower or "oficio" in name_lower:
         category = "Ofício"
     elif "anexo" in name_lower:
@@ -79,7 +109,6 @@ def get_all_documents():
                 ctime = stat.st_ctime
                 mtime = stat.st_mtime
                 
-                # Format dates
                 ctime_dt = datetime.fromtimestamp(ctime)
                 mtime_dt = datetime.fromtimestamp(mtime)
                 
@@ -139,10 +168,13 @@ def index():
         except Exception as e:
             print("Erro ao ler app.js:", e, file=sys.stderr)
             
+    docs = get_all_documents()
     return render_template(
         "index.html",
         inline_css=css_content,
-        inline_js=js_content
+        inline_js=js_content,
+        initial_documents=docs,
+        doc_count=len(docs)
     )
 
 @app.route("/logo/dark")
@@ -151,7 +183,8 @@ def logo_dark():
     path = os.path.join(STATIC_DIR, "img", "logo_barretos_inteligente_white.png")
     if os.path.exists(path):
         return send_file(path, mimetype="image/png")
-    return send_file(os.path.join(BASE_DIR, "logo_barretos_inteligente.png"), mimetype="image/png")
+    fallback = os.path.join(BASE_DIR, "logo_barretos_inteligente.png")
+    return send_file(fallback, mimetype="image/png")
 
 @app.route("/logo/light")
 def logo_light():
@@ -159,7 +192,8 @@ def logo_light():
     path = os.path.join(STATIC_DIR, "img", "logo_barretos_inteligente.png")
     if os.path.exists(path):
         return send_file(path, mimetype="image/png")
-    return send_file(os.path.join(BASE_DIR, "logo_barretos_inteligente.png"), mimetype="image/png")
+    fallback = os.path.join(BASE_DIR, "logo_barretos_inteligente.png")
+    return send_file(fallback, mimetype="image/png")
 
 @app.route("/static/<path:filename>")
 def serve_static(filename):
@@ -207,9 +241,81 @@ def download_pdf(subpath):
         download_name=os.path.basename(safe_path)
     )
 
+def get_network_ip():
+    """Detect the local machine IP on the LAN/Wi-Fi."""
+    # Method 1: Connect to known address (UDP routing table lookup, no traffic actually sent)
+    for target in [("8.8.8.8", 80), ("1.1.1.1", 80), ("192.168.1.1", 80), ("10.0.0.1", 80)]:
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.settimeout(0.3)
+            s.connect(target)
+            ip = s.getsockname()[0]
+            s.close()
+            if ip and not ip.startswith("127."):
+                return ip
+        except Exception:
+            pass
+
+    # Method 2: Hostname resolution fallback
+    try:
+        hostname = socket.gethostname()
+        for ip in socket.gethostbyname_ex(hostname)[2]:
+            if not ip.startswith("127."):
+                return ip
+    except Exception:
+        pass
+
+    return "127.0.0.1"
+
+def get_server_info(port=5001):
+    """Return dictionary with network URLs and hostname."""
+    try:
+        hostname = socket.gethostname()
+    except Exception:
+        hostname = "servidor"
+        
+    local_ip = get_network_ip()
+    
+    return {
+        "hostname": hostname,
+        "local_ip": local_ip,
+        "port": port,
+        "local_url": f"http://localhost:{port}",
+        "network_url": f"http://{local_ip}:{port}",
+        "hostname_url": f"http://{hostname.lower()}:{port}"
+    }
+
+@app.route("/api/server-info")
+def api_server_info():
+    """Return network configuration so clients and UI know the shareable URLs."""
+    port = int(os.environ.get("PORT", 5001))
+    info = get_server_info(port)
+    client_ip = request.remote_addr
+    info["client_ip"] = client_ip
+    info["is_local_client"] = client_ip in ("127.0.0.1", "::1", info["local_ip"])
+    return jsonify(info)
+
 @app.route("/api/open-folder", methods=["POST"])
 def open_folder():
     """Trigger Windows Explorer to select/highlight the file."""
+    # Check if running in cloud / Vercel (no local desktop explorer available)
+    if os.environ.get("VERCEL") == "1" or sys.platform != "win32":
+        return jsonify({
+            "success": False,
+            "is_cloud": True,
+            "message": "O recurso 'Ver na Pasta' só funciona localmente no computador. Na web, utilize 'Visualizar' ou 'Baixar'."
+        })
+
+    # Check if request is from a remote machine on the network
+    client_ip = request.remote_addr
+    local_ip = get_network_ip()
+    if client_ip not in ("127.0.0.1", "::1", local_ip):
+        return jsonify({
+            "success": False,
+            "is_remote": True,
+            "message": "O recurso 'Ver na Pasta' só pode ser acionado diretamente no computador Servidor. Utilize os botões 'Visualizar' ou 'Baixar' no seu navegador."
+        })
+        
     data = request.get_json(force=True, silent=True) or {}
     rel_path = data.get("relative_path")
     full_path = data.get("full_path")
@@ -224,15 +330,7 @@ def open_folder():
             
     if not target_path or not os.path.exists(target_path):
         return jsonify({"success": False, "message": "Arquivo não encontrado."}), 404
-        
-    # Check if running in cloud / Vercel (no local desktop explorer available)
-    if os.environ.get("VERCEL") == "1" or sys.platform != "win32":
-        return jsonify({
-            "success": False,
-            "is_cloud": True,
-            "message": "O recurso 'Ver na Pasta' só funciona localmente no computador. Na web, utilize 'Visualizar' ou 'Baixar'."
-        })
-        
+
     try:
         subprocess.Popen(["explorer.exe", f"/select,{os.path.abspath(target_path)}"])
             
@@ -243,7 +341,34 @@ def open_folder():
     except Exception as e:
         return jsonify({"success": False, "message": f"Erro ao abrir pasta: {str(e)}"}), 500
 
+def open_browser(port):
+    """Open browser after a short delay to allow server to start."""
+    import time
+    time.sleep(1.5)
+    webbrowser.open(f"http://localhost:{port}")
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
-    print(f"Iniciando Sistema de Consulta de Ofícios em http://127.0.0.1:{port}")
-    app.run(host="127.0.0.1", port=port, debug=True)
+    info = get_server_info(port)
+    
+    print("=" * 72)
+    print("           SISTEMA DE CONSULTA DE OFICIOS - PMO           ")
+    print("=" * 72)
+    print("\n  [+] SERVIDOR INICIADO COM SUCESSO E DISPONIVEL NA REDE!")
+    print("\n  [*] Acesso neste computador (Servidor):")
+    print(f"      {info['local_url']}")
+    print("\n  [+] LINK COMPARTILHAVEL PARA A REDE (qualquer colega na empresa):")
+    print(f"      IP:       {info['network_url']}")
+    print(f"      Hostname: {info['hostname_url']}")
+    print(f"\n  [*] Pasta de oficios:    {DOCS_DIR}")
+    print(f"  [*] Total de documentos: {len(get_all_documents())} arquivos indexados")
+    print("\n  [i] Compartilhe o link acima com outros computadores ou celulares")
+    print("      conectados na mesma rede/Wi-Fi da empresa.")
+    print("  [x] Para encerrar: feche esta janela ou pressione Ctrl+C\n")
+    print("=" * 72)
+    
+    # Open browser on local machine in background
+    threading.Thread(target=open_browser, args=(port,), daemon=True).start()
+    
+    # Listen on 0.0.0.0 so all computers on the network can connect
+    app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)

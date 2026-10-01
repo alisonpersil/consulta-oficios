@@ -10,3 +10,14 @@ venv/
 .vercel/
 .idea/
 .vscode/
+
+# Build artifacts & temp files
+build/
+dist/
+*.log
+cloudflared.exe
+ConsultaOficios.exe
+ConsultaOficios.spec
+MEU_LINK.txt
+check_js.py
+test_script.js

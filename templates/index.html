@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR" data-theme="dark">
+<html lang="pt-BR" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -40,6 +40,10 @@
                     <i class="fa-solid fa-folder-open"></i>
                     <span id="headerDocCount">47 documentos</span>
                 </div>
+                <button id="btnShareNetwork" class="nav-btn btn-share-network" title="Ver links de acesso para compartilhar com colegas na rede">
+                    <i class="fa-solid fa-network-wired"></i>
+                    <span>Link na Rede</span>
+                </button>
                 <button id="btnRefresh" class="nav-btn" title="Recarregar ofícios da pasta">
                     <i class="fa-solid fa-rotate"></i>
                     <span>Atualizar</span>
@@ -258,9 +262,86 @@
             </div>
         </div>
 
+        <!-- Share Network Modal -->
+        <div id="shareModal" class="modal-overlay hidden" aria-hidden="true">
+            <div class="modal-container share-modal-container">
+                <div class="modal-header">
+                    <div class="modal-title-group">
+                        <div class="modal-badge share-badge">
+                            <i class="fa-solid fa-wifi"></i> Rede Local
+                        </div>
+                        <h2 class="modal-title">Link Compartilhável do Sistema</h2>
+                        <span class="modal-subtitle">Qualquer computador ou celular conectado na mesma rede pode acessar:</span>
+                    </div>
+                    <div class="modal-actions">
+                        <button id="btnShareModalClose" class="btn-modal-close" title="Fechar (Esc)">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="share-modal-body">
+                    <!-- IP Link Card -->
+                    <div class="share-card">
+                        <div class="share-card-header">
+                            <div class="share-card-icon ip-icon">
+                                <i class="fa-solid fa-network-wired"></i>
+                            </div>
+                            <div class="share-card-info">
+                                <span class="share-card-title">Link Principal por IP (Recomendado)</span>
+                                <span class="share-card-desc">Conexão direta mais estável em qualquer navegador da empresa</span>
+                            </div>
+                        </div>
+                        <div class="share-input-group">
+                            <input type="text" id="shareNetworkUrlInput" class="share-url-input" readonly value="Carregando link...">
+                            <button id="btnCopyNetworkUrl" class="btn-copy-url" title="Copiar link do IP">
+                                <i class="fa-regular fa-copy"></i>
+                                <span>Copiar</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Hostname Link Card -->
+                    <div class="share-card">
+                        <div class="share-card-header">
+                            <div class="share-card-icon host-icon">
+                                <i class="fa-solid fa-laptop"></i>
+                            </div>
+                            <div class="share-card-info">
+                                <span class="share-card-title">Link Amigável por Nome do Servidor</span>
+                                <span class="share-card-desc">Fácil de memorizar e passar para a equipe</span>
+                            </div>
+                        </div>
+                        <div class="share-input-group">
+                            <input type="text" id="shareHostnameUrlInput" class="share-url-input" readonly value="Carregando link...">
+                            <button id="btnCopyHostnameUrl" class="btn-copy-url" title="Copiar link amigável">
+                                <i class="fa-regular fa-copy"></i>
+                                <span>Copiar</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Server Info Box -->
+                    <div class="share-info-box">
+                        <div class="share-info-icon">
+                            <i class="fa-solid fa-circle-info"></i>
+                        </div>
+                        <div class="share-info-text">
+                            <strong>Dica para o Servidor:</strong>
+                            <p>Para manter o link sempre ativo, deixe o sistema aberto ou configure a inicialização automática junto com o Windows. Toda vez que o servidor for ligado, o link estará pronto para uso!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Toast Notifications -->
         <div id="toastContainer" class="toast-container"></div>
     </div>
+
+    <script>
+        window.INITIAL_DOCS = {{ initial_documents | tojson | safe if initial_documents else '[]' }};
+    </script>
 
     <!-- Application JavaScript (Inlined for instant execution & cloud resilience) -->
     {% if inline_js %}
@@ -270,5 +351,11 @@
     {% else %}
     <script src="/static/js/app.js"></script>
     {% endif %}
+
+    <script>
+        if (typeof initApp === 'function') {
+            initApp();
+        }
+    </script>
 </body>
 </html>
