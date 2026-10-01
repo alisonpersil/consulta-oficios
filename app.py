@@ -19,22 +19,11 @@ if sys.platform == "win32":
 
 from flask import Flask, render_template, jsonify, send_file, send_from_directory, request, abort
 
-# ===================================================================
-# PYINSTALLER COMPATIBILITY: Resolve paths when running as .exe
-# ===================================================================
-def resource_path(relative_path):
-    """Resolve paths both when running as .py and as PyInstaller .exe."""
-    if hasattr(sys, '_MEIPASS'):
-        # Running as compiled .exe bundle
-        return os.path.join(sys._MEIPASS, relative_path)
-    # Running as normal .py script
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), relative_path)
-
-# The docs dir is ALWAYS relative to the exe/script location (not bundled)
-BASE_DIR = os.path.dirname(os.path.abspath(sys.executable if getattr(sys, 'frozen', False) else __file__))
+# Paths configuration
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DOCS_DIR = os.path.join(BASE_DIR, "Base de dados Ofícios")
-STATIC_DIR = resource_path("static")
-TEMPLATES_DIR = resource_path("templates")
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 
 app = Flask(
     __name__,
@@ -180,20 +169,30 @@ def index():
 @app.route("/logo/dark")
 def logo_dark():
     """Serve dark theme logo."""
-    path = os.path.join(STATIC_DIR, "img", "logo_barretos_inteligente_white.png")
+    path = os.path.join(STATIC_DIR, "img", "logo-ipbarretos-horizontal-alta-white.png")
     if os.path.exists(path):
         return send_file(path, mimetype="image/png")
-    fallback = os.path.join(BASE_DIR, "logo_barretos_inteligente.png")
-    return send_file(fallback, mimetype="image/png")
+    fallback = os.path.join(BASE_DIR, "logo-ipbarretos-horizontal-alta.png")
+    if os.path.exists(fallback):
+        return send_file(fallback, mimetype="image/png")
+    return send_file(os.path.join(STATIC_DIR, "img", "logo-ipbarretos-horizontal-alta.png"), mimetype="image/png")
 
 @app.route("/logo/light")
 def logo_light():
     """Serve light theme logo."""
-    path = os.path.join(STATIC_DIR, "img", "logo_barretos_inteligente.png")
+    path = os.path.join(STATIC_DIR, "img", "logo-ipbarretos-horizontal-alta.png")
     if os.path.exists(path):
         return send_file(path, mimetype="image/png")
-    fallback = os.path.join(BASE_DIR, "logo_barretos_inteligente.png")
+    fallback = os.path.join(BASE_DIR, "logo-ipbarretos-horizontal-alta.png")
     return send_file(fallback, mimetype="image/png")
+
+@app.route("/favicon.ico")
+def favicon():
+    """Serve site favicon."""
+    fav_path = os.path.join(STATIC_DIR, "img", "favicon.png")
+    if os.path.exists(fav_path):
+        return send_file(fav_path, mimetype="image/png")
+    return ("", 204)
 
 @app.route("/static/<path:filename>")
 def serve_static(filename):

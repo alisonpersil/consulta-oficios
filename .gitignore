@@ -1,19 +1,20 @@
+# Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
 .Python
 env/
 venv/
 .venv/
 .env
-.vercel/
-.idea/
-.vscode/
 
-# Build artifacts & temp files
+# PyInstaller / Executables / Build
+*.exe
+*.spec
 build/
 dist/
+*.manifest
 *.log
 cloudflared.exe
 ConsultaOficios.exe
@@ -21,3 +22,18 @@ ConsultaOficios.spec
 MEU_LINK.txt
 check_js.py
 test_script.js
+
+# Windows Automation / Shortcuts
+*.vbs
+*.lnk
+
+# Vercel
+.vercel/
+
+# IDEs & System
+.idea/
+.vscode/
+*.swp
+*.swo
+Thumbs.db
+Desktop.ini

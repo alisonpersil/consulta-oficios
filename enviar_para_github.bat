@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 > nul
 title Enviar para o GitHub
 color 0A
 
@@ -8,10 +9,14 @@ echo ======================================================================
 echo.
 echo Repositorio: https://github.com/alisonpersil/consulta-oficios
 echo.
-echo Enviando arquivos... Aguarde um instante...
-echo.
 
-git push -u origin main
+echo [+] Adicionando arquivos e registrando alteracoes...
+git add -A
+git commit -m "Atualizacao da logo, remocao de executaveis e preparacao Vercel" >nul 2>&1
+
+echo [+] Enviando arquivos para o GitHub... Aguarde um instante...
+echo.
+git push origin main
 
 echo.
 echo ======================================================================
