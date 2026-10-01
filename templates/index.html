@@ -28,8 +28,7 @@
         <header class="navbar">
             <div class="nav-left">
                 <div class="brand-logo">
-                    <img src="/logo/dark" alt="Barretos Inteligente" class="brand-logo-img dark-logo">
-                    <img src="/logo/light" alt="Barretos Inteligente" class="brand-logo-img light-logo">
+                    <img src="/static/img/logo-ipbarretos-horizontal-alta.png" alt="Barretos Inteligente" class="brand-logo-img">
                     <div class="brand-divider"></div>
                     <div class="brand-text">
                         <span class="brand-title">Consulta de Ofícios</span>
@@ -43,6 +42,10 @@
                     <i class="fa-solid fa-folder-open"></i>
                     <span id="headerDocCount">47 documentos</span>
                 </div>
+                <button id="btnOpenImportModal" class="nav-btn btn-import" title="Importar novos ofícios (1 arquivo ou em lote)">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                    <span class="btn-import-text">Importar</span>
+                </button>
                 <button id="btnRefresh" class="nav-btn" title="Recarregar ofícios da pasta">
                     <i class="fa-solid fa-rotate"></i>
                     <span>Atualizar</span>
@@ -232,6 +235,10 @@
                     </div>
 
                     <div class="modal-actions">
+                        <button id="btnModalDelete" class="btn-modal-action btn-danger-action" title="Excluir este ofício">
+                            <i class="fa-solid fa-trash-can"></i>
+                            <span>Excluir</span>
+                        </button>
                         <button id="btnModalDownload" class="btn-modal-action" title="Baixar arquivo">
                             <i class="fa-solid fa-download"></i>
                             <span>Baixar</span>
@@ -248,11 +255,142 @@
 
                 <!-- Modal Body (PDF Viewer) -->
                 <div class="modal-body">
+                    <!-- Mobile Friendly Notice / Direct Open Button -->
+                    <div class="mobile-pdf-notice">
+                        <a id="btnMobileOpenPdf" href="#" target="_blank" class="btn-mobile-pdf">
+                            <i class="fa-solid fa-file-pdf"></i>
+                            <span>Abrir Documento Completo</span>
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                        </a>
+                    </div>
                     <div id="modalLoading" class="modal-pdf-loading">
                         <div class="spinner"></div>
                         <p>Carregando pré-visualização do PDF...</p>
                     </div>
                     <iframe id="pdfViewerFrame" class="pdf-iframe" src="" title="Pré-visualização do PDF"></iframe>
+                </div>
+            </div>
+        </div>
+
+        <!-- Import Ofícios Modal -->
+        <div id="importModal" class="modal-overlay hidden" aria-hidden="true">
+            <div class="modal-container import-modal-container">
+                <div class="modal-header">
+                    <div class="modal-title-group">
+                        <div class="modal-badge import-badge">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> Upload de Documentos
+                        </div>
+                        <h2 class="modal-title">Importar Ofícios</h2>
+                        <span class="modal-subtitle">Envie um ou múltiplos arquivos PDF, ou selecione uma pasta inteira.</span>
+                    </div>
+                    <div class="modal-actions">
+                        <button id="btnImportModalClose" class="btn-modal-close" title="Fechar (Esc)">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="modal-body import-modal-body">
+                    <!-- Import Type Switcher -->
+                    <div class="import-tabs">
+                        <button id="tabImportFiles" class="import-tab active" type="button">
+                            <i class="fa-solid fa-file-pdf"></i> Arquivos Individuais / Em Massa
+                        </button>
+                        <button id="tabImportFolder" class="import-tab" type="button">
+                            <i class="fa-solid fa-folder"></i> Pasta Completa
+                        </button>
+                    </div>
+
+                    <!-- Drag and drop zone -->
+                    <div id="dropZone" class="drop-zone">
+                        <input type="file" id="fileInputMultiple" accept=".pdf,application/pdf" multiple class="hidden-input">
+                        <input type="file" id="fileInputFolder" webkitdirectory directory multiple class="hidden-input">
+                        
+                        <div class="drop-zone-content">
+                            <div class="drop-zone-icon">
+                                <i class="fa-solid fa-cloud-arrow-up"></i>
+                            </div>
+                            <h3 class="drop-zone-title" id="dropZoneTitle">Arraste seus PDFs aqui ou clique para selecionar</h3>
+                            <p class="drop-zone-desc" id="dropZoneDesc">Você pode selecionar vários arquivos de uma só vez (PDF)</p>
+                            <button type="button" id="btnBrowseFiles" class="btn-browse">
+                                <i class="fa-solid fa-folder-open"></i> Selecionar Arquivos
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Selected files preview list -->
+                    <div id="importFileListContainer" class="import-files-container hidden">
+                        <div class="import-files-header">
+                            <span id="importFileCount">0 arquivo(s) selecionado(s)</span>
+                            <button type="button" id="btnClearImportList" class="btn-link-action">Limpar</button>
+                        </div>
+                        <div id="importFileList" class="import-files-list"></div>
+                        
+                        <!-- Progress bar -->
+                        <div id="importProgressBarContainer" class="import-progress-wrapper hidden">
+                            <div class="import-progress-bar">
+                                <div id="importProgressFill" class="import-progress-fill"></div>
+                            </div>
+                            <span id="importProgressLabel" class="import-progress-label">Enviando arquivos...</span>
+                        </div>
+                    </div>
+
+                    <!-- Cloud / GitHub Token Settings Box (Collapsible) -->
+                    <div class="cloud-settings-card">
+                        <div class="cloud-settings-header" id="btnToggleGithubSettings">
+                            <div class="cloud-status-indicator">
+                                <i class="fa-brands fa-github"></i>
+                                <span id="cloudStatusText">Sincronização com GitHub</span>
+                            </div>
+                            <i class="fa-solid fa-chevron-down toggle-icon" id="githubSettingsChevron"></i>
+                        </div>
+                        <div id="githubSettingsBody" class="cloud-settings-body hidden">
+                            <p class="cloud-settings-desc">
+                                Na nuvem (Vercel), arquivos enviados são salvos diretamente no repositório GitHub para atualizar o site automaticamente.
+                            </p>
+                            <div class="github-token-input-group">
+                                <label for="githubTokenInput">GitHub Personal Access Token (para salvar/excluir direto no Vercel):</label>
+                                <div class="input-with-button">
+                                    <input type="password" id="githubTokenInput" placeholder="ghp_xxxxxxxxxxxx..." autocomplete="off">
+                                    <button type="button" id="btnSaveGithubToken" class="btn-save-token">Salvar</button>
+                                </div>
+                                <small class="token-help">O token fica salvo apenas no seu navegador para autorizar operações na nuvem.</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer import-modal-footer">
+                    <button type="button" id="btnCancelImport" class="btn-secondary">Cancelar</button>
+                    <button type="button" id="btnStartImport" class="btn-primary" disabled>
+                        <i class="fa-solid fa-upload"></i>
+                        <span>Iniciar Importação</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delete Confirmation Modal -->
+        <div id="deleteModal" class="modal-overlay hidden" aria-hidden="true">
+            <div class="modal-container delete-modal-container">
+                <div class="delete-modal-content">
+                    <div class="delete-icon-wrapper">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <h3 class="delete-modal-title">Excluir Ofício?</h3>
+                    <p class="delete-modal-message">
+                        Tem certeza de que deseja remover <strong id="deleteDocName"></strong>?
+                    </p>
+                    <p class="delete-modal-warning">
+                        Esta ação removerá o arquivo permanentemente do acervo e do site.
+                    </p>
+                    <div class="delete-modal-actions">
+                        <button type="button" id="btnCancelDelete" class="btn-secondary">Cancelar</button>
+                        <button type="button" id="btnConfirmDelete" class="btn-danger-confirm">
+                            <i class="fa-solid fa-trash-can"></i>
+                            <span>Sim, Excluir</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

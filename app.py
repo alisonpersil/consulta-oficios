@@ -182,24 +182,16 @@ def index():
     )
 
 @app.route("/logo/dark")
-def logo_dark():
-    """Serve dark theme logo."""
-    path = os.path.join(STATIC_DIR, "img", "logo-ipbarretos-horizontal-alta-white.png")
+@app.route("/logo/light")
+def logo():
+    """Serve the primary high-resolution logo for both light and dark themes."""
+    path = os.path.join(STATIC_DIR, "img", "logo-ipbarretos-horizontal-alta.png")
     if os.path.exists(path):
         return send_file(path, mimetype="image/png")
     fallback = os.path.join(BASE_DIR, "logo-ipbarretos-horizontal-alta.png")
     if os.path.exists(fallback):
         return send_file(fallback, mimetype="image/png")
-    return send_file(os.path.join(STATIC_DIR, "img", "logo-ipbarretos-horizontal-alta.png"), mimetype="image/png")
-
-@app.route("/logo/light")
-def logo_light():
-    """Serve light theme logo."""
-    path = os.path.join(STATIC_DIR, "img", "logo-ipbarretos-horizontal-alta.png")
-    if os.path.exists(path):
-        return send_file(path, mimetype="image/png")
-    fallback = os.path.join(BASE_DIR, "logo-ipbarretos-horizontal-alta.png")
-    return send_file(fallback, mimetype="image/png")
+    return ("", 404)
 
 @app.route("/favicon.ico")
 def favicon():
@@ -213,6 +205,18 @@ def favicon():
 def serve_static(filename):
     """Serve static files directly with correct mime types for Vercel/cloud."""
     return send_from_directory(STATIC_DIR, filename)
+
+@app.route("/api/system/status")
+def system_status():
+    """Return cloud/local environment information."""
+    is_vercel = bool(os.environ.get("VERCEL"))
+    token = request.headers.get("X-GitHub-Token") or os.environ.get("GITHUB_TOKEN")
+    return jsonify({
+        "success": True,
+        "is_vercel": is_vercel,
+        "has_github_token": bool(token),
+        "repo": os.environ.get("GITHUB_REPO", "alisonpersil/consulta-oficios")
+    })
 
 @app.route("/api/oficios")
 def api_oficios():
@@ -256,6 +260,238 @@ def download_pdf(subpath):
         as_attachment=True,
         download_name=os.path.basename(safe_path)
     )
+
+GITHUB_REPO = os.environ.get("GITHUB_REPO", "alisonpersil/consulta-oficios")
+
+def run_git_sync_background(commit_message="Atualização de ofícios"):
+    """Run git add, commit, and push in background thread if local git repository."""
+    def _sync():
+        try:
+            subprocess.run(["git", "add", "Base de dados Ofícios"], cwd=BASE_DIR, check=False)
+            subprocess.run(["git", "commit", "-m", commit_message], cwd=BASE_DIR, check=False)
+            subprocess.run(["git", "push", "origin", "main"], cwd=BASE_DIR, check=False)
+        except Exception as e:
+            print(f"Erro no git sync: {e}", file=sys.stderr)
+            
+    thread = threading.Thread(target=_sync, daemon=True)
+    thread.start()
+
+def github_api_commit_file(token, repo_path, file_bytes, commit_message):
+    """Commit a file directly to GitHub via REST API."""
+    import base64
+    import urllib.request
+    import urllib.error
+    import urllib.parse
+    import json
+
+    encoded_path = "/".join(urllib.parse.quote(part) for part in repo_path.strip("/").split("/"))
+    url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{encoded_path}"
+    
+    sha = None
+    req_get = urllib.request.Request(url, headers={
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github.v3+json",
+        "User-Agent": "Consulta-Oficios-App"
+    })
+    try:
+        with urllib.request.urlopen(req_get) as response:
+            if response.status == 200:
+                data = json.loads(response.read().decode("utf-8"))
+                sha = data.get("sha")
+    except urllib.error.HTTPError as e:
+        if e.code != 404:
+            raise
+
+    payload = {
+        "message": commit_message,
+        "content": base64.b64encode(file_bytes).decode("utf-8")
+    }
+    if sha:
+        payload["sha"] = sha
+        
+    data_json = json.dumps(payload).encode("utf-8")
+    req_put = urllib.request.Request(url, data=data_json, headers={
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github.v3+json",
+        "Content-Type": "application/json",
+        "User-Agent": "Consulta-Oficios-App"
+    }, method="PUT")
+    
+    with urllib.request.urlopen(req_put) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+def github_api_delete_file(token, repo_path, commit_message):
+    """Delete a file directly on GitHub via REST API."""
+    import urllib.request
+    import urllib.error
+    import urllib.parse
+    import json
+
+    encoded_path = "/".join(urllib.parse.quote(part) for part in repo_path.strip("/").split("/"))
+    url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{encoded_path}"
+    
+    req_get = urllib.request.Request(url, headers={
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github.v3+json",
+        "User-Agent": "Consulta-Oficios-App"
+    })
+    with urllib.request.urlopen(req_get) as response:
+        data = json.loads(response.read().decode("utf-8"))
+        sha = data.get("sha")
+        
+    if not sha:
+        raise Exception("Arquivo não encontrado no GitHub")
+        
+    payload = {
+        "message": commit_message,
+        "sha": sha
+    }
+    data_json = json.dumps(payload).encode("utf-8")
+    req_del = urllib.request.Request(url, data=data_json, headers={
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github.v3+json",
+        "Content-Type": "application/json",
+        "User-Agent": "Consulta-Oficios-App"
+    }, method="DELETE")
+    
+    with urllib.request.urlopen(req_del) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+@app.route("/api/oficios/upload", methods=["POST"])
+def upload_oficios():
+    """Import one or multiple PDF documents into the repository."""
+    files = request.files.getlist("files") or request.files.getlist("files[]")
+    if not files or all(f.filename == "" for f in files):
+        return jsonify({"success": False, "error": "Nenhum arquivo enviado."}), 400
+
+    is_vercel = bool(os.environ.get("VERCEL"))
+    token = request.headers.get("X-GitHub-Token") or os.environ.get("GITHUB_TOKEN")
+    
+    if is_vercel and not token:
+        return jsonify({
+            "success": False,
+            "error": "github_token_required",
+            "message": "Para que os ofícios sejam salvos permanentemente no Vercel, informe o GitHub Token nas configurações ou variáveis de ambiente."
+        }), 403
+
+    saved_docs = []
+    errors = []
+    target_dir = os.path.join(DOCS_DIR, "Ofícios")
+    os.makedirs(target_dir, exist_ok=True)
+
+    for file in files:
+        if not file or not file.filename:
+            continue
+            
+        filename = os.path.basename(file.filename.replace("\\", "/"))
+        if not filename.lower().endswith(".pdf"):
+            continue
+
+        try:
+            file_bytes = file.read()
+            if is_vercel:
+                # Commit directly to GitHub
+                repo_path = f"Base de dados Ofícios/Ofícios/{filename}"
+                github_api_commit_file(
+                    token=token,
+                    repo_path=repo_path,
+                    file_bytes=file_bytes,
+                    commit_message=f"feat: importar oficio {filename}"
+                )
+            else:
+                # Save locally
+                save_path = os.path.join(target_dir, filename)
+                with open(save_path, "wb") as f:
+                    f.write(file_bytes)
+
+            size_bytes = len(file_bytes)
+            now_dt = datetime.now()
+            category, year = extract_category_and_year(filename)
+            rel_path = f"Ofícios/{filename}"
+            
+            saved_docs.append({
+                "id": int(now_dt.timestamp() * 1000) + len(saved_docs),
+                "name": filename,
+                "relative_path": rel_path,
+                "size_bytes": size_bytes,
+                "size_formatted": format_file_size(size_bytes),
+                "ctime": now_dt.timestamp(),
+                "ctime_formatted": now_dt.strftime("%d/%m/%Y %H:%M"),
+                "mtime": now_dt.timestamp(),
+                "mtime_formatted": now_dt.strftime("%d/%m/%Y %H:%M"),
+                "extension": ".pdf",
+                "is_pdf": True,
+                "category": category,
+                "year": year
+            })
+        except Exception as e:
+            errors.append(f"{filename}: {str(e)}")
+
+    if not is_vercel and saved_docs:
+        run_git_sync_background(f"feat: importar {len(saved_docs)} ofício(s)")
+
+    return jsonify({
+        "success": len(saved_docs) > 0,
+        "count": len(saved_docs),
+        "documents": saved_docs,
+        "errors": errors,
+        "synced": True
+    })
+
+@app.route("/api/oficios/delete", methods=["POST", "DELETE"])
+def delete_oficio():
+    """Remove a document permanently from the collection."""
+    data = request.get_json(silent=True) or request.form
+    rel_path = data.get("relative_path")
+    if not rel_path:
+        return jsonify({"success": False, "error": "Caminho do arquivo não fornecido."}), 400
+
+    is_vercel = bool(os.environ.get("VERCEL"))
+    token = request.headers.get("X-GitHub-Token") or os.environ.get("GITHUB_TOKEN")
+
+    if is_vercel and not token:
+        return jsonify({
+            "success": False,
+            "error": "github_token_required",
+            "message": "Para excluir arquivos permanentemente no Vercel, informe o GitHub Token."
+        }), 403
+
+    try:
+        filename = os.path.basename(rel_path)
+        if is_vercel:
+            repo_path = f"Base de dados Ofícios/{rel_path.strip('/')}"
+            github_api_delete_file(
+                token=token,
+                repo_path=repo_path,
+                commit_message=f"chore: excluir oficio {filename}"
+            )
+        else:
+            safe_path = get_safe_file_path(rel_path)
+            if not safe_path or not os.path.isfile(safe_path):
+                return jsonify({"success": False, "error": "Arquivo não encontrado."}), 404
+            os.remove(safe_path)
+            run_git_sync_background(f"chore: excluir oficio {filename}")
+
+        return jsonify({
+            "success": True,
+            "message": f"Ofício '{filename}' removido com sucesso."
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route("/api/git/sync", methods=["POST"])
+def manual_git_sync():
+    """Trigger manual git push to origin main when running locally."""
+    if bool(os.environ.get("VERCEL")):
+        return jsonify({"success": True, "message": "Em execução na nuvem Vercel."})
+        
+    try:
+        subprocess.run(["git", "add", "-A"], cwd=BASE_DIR, check=False)
+        subprocess.run(["git", "commit", "-m", "sync: sincronizacao manual de oficios"], cwd=BASE_DIR, check=False)
+        subprocess.run(["git", "push", "origin", "main"], cwd=BASE_DIR, check=False)
+        return jsonify({"success": True, "message": "Repositório sincronizado com o GitHub com sucesso!"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
