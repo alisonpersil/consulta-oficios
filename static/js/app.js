@@ -83,6 +83,10 @@ const githubSettingsChevron = document.getElementById('githubSettingsChevron');
 const githubTokenInput = document.getElementById('githubTokenInput');
 const btnSaveGithubToken = document.getElementById('btnSaveGithubToken');
 const cloudStatusText = document.getElementById('cloudStatusText');
+const cloudStatusTitle = document.getElementById('cloudStatusTitle');
+const cloudStatusSubtitle = document.getElementById('cloudStatusSubtitle');
+const importNoticeAlert = document.getElementById('importNoticeAlert');
+const importNoticeMessage = document.getElementById('importNoticeMessage');
 
 // Delete Modal Elements
 const deleteModal = document.getElementById('deleteModal');
@@ -760,6 +764,10 @@ async function confirmDelete() {
                 showToast(data.message, 'error');
                 closeDeleteModal();
                 openImportModal();
+                if (importNoticeAlert && importNoticeMessage) {
+                    importNoticeMessage.innerHTML = 'Para excluir ofícios permanentemente no Vercel, informe o <strong>GitHub Personal Access Token</strong> nas configurações abaixo ou adicione a variável <code>GITHUB_TOKEN</code> no painel da Vercel.';
+                    importNoticeAlert.classList.remove('hidden');
+                }
                 toggleGithubSettings(true);
             } else {
                 showToast(data.error || 'Erro ao excluir documento', 'error');
@@ -911,9 +919,17 @@ async function startImportUpload() {
         } else {
             if (data.error === 'github_token_required') {
                 showToast(data.message, 'error');
+                if (importNoticeAlert && importNoticeMessage) {
+                    importNoticeMessage.innerHTML = 'Para que os ofícios sejam salvos permanentemente no Vercel, informe o <strong>GitHub Personal Access Token</strong> nas configurações abaixo ou adicione a variável <code>GITHUB_TOKEN</code> no painel da Vercel.';
+                    importNoticeAlert.classList.remove('hidden');
+                }
                 toggleGithubSettings(true);
             } else {
                 showToast(data.message || data.error || 'Erro ao importar ofícios', 'error');
+                if (importNoticeAlert && importNoticeMessage) {
+                    importNoticeMessage.textContent = data.message || data.error || 'Erro ao importar ofícios';
+                    importNoticeAlert.classList.remove('hidden');
+                }
             }
             if (importProgressFill) importProgressFill.style.width = '0%';
             btnStartImport.disabled = false;
@@ -921,6 +937,10 @@ async function startImportUpload() {
     } catch (err) {
         console.error('Erro no upload:', err);
         showToast('Erro de rede ao enviar arquivos.', 'error');
+        if (importNoticeAlert && importNoticeMessage) {
+            importNoticeMessage.textContent = 'Erro de conexão com o servidor ao enviar os arquivos.';
+            importNoticeAlert.classList.remove('hidden');
+        }
         if (importProgressFill) importProgressFill.style.width = '0%';
         btnStartImport.disabled = false;
     }
@@ -947,15 +967,24 @@ async function checkSystemStatus() {
             if (githubTokenInput && savedToken) {
                 githubTokenInput.value = savedToken;
             }
-            if (cloudStatusText) {
+            if (cloudStatusTitle && cloudStatusSubtitle) {
                 if (data.is_vercel) {
-                    if (savedToken || data.has_github_token) {
-                        cloudStatusText.innerHTML = '<span style="color: #10a37f;"><i class="fa-solid fa-circle-check"></i> Vercel conectado ao GitHub</span>';
+                    if (data.has_github_token) {
+                        cloudStatusTitle.innerHTML = '<span style="color: #10a37f;"><i class="fa-solid fa-circle-check"></i> Vercel Conectado ao GitHub</span>';
+                        cloudStatusSubtitle.textContent = 'GITHUB_TOKEN ativo na Vercel! Todos os usuários salvam permanentemente.';
+                        if (importNoticeAlert) importNoticeAlert.classList.add('hidden');
+                    } else if (savedToken) {
+                        cloudStatusTitle.innerHTML = '<span style="color: #10a37f;"><i class="fa-solid fa-circle-check"></i> Conectado (Token Salvo no Navegador)</span>';
+                        cloudStatusSubtitle.textContent = 'Token de acesso configurado neste dispositivo.';
+                        if (importNoticeAlert) importNoticeAlert.classList.add('hidden');
                     } else {
-                        cloudStatusText.innerHTML = '<span style="color: #f59e0b;"><i class="fa-solid fa-triangle-exclamation"></i> Vercel (Token GitHub recomendado)</span>';
+                        cloudStatusTitle.innerHTML = '<span style="color: #f59e0b;"><i class="fa-solid fa-triangle-exclamation"></i> GITHUB_TOKEN Necessário</span>';
+                        cloudStatusSubtitle.textContent = 'Configure GITHUB_TOKEN na Vercel para todos os usuários.';
                     }
                 } else {
-                    cloudStatusText.innerHTML = '<span style="color: #10a37f;"><i class="fa-solid fa-laptop"></i> Servidor Local (Git Sync Ativo)</span>';
+                    cloudStatusTitle.innerHTML = '<span style="color: #10a37f;"><i class="fa-solid fa-laptop"></i> Servidor Local (Git Sync)</span>';
+                    cloudStatusSubtitle.textContent = 'Modo de desenvolvimento local conectado ao repositório.';
+                    if (importNoticeAlert) importNoticeAlert.classList.add('hidden');
                 }
             }
         }

@@ -291,13 +291,24 @@
                 </div>
 
                 <div class="modal-body import-modal-body">
+                    <!-- Alert Notice for Cloud / Token info -->
+                    <div id="importNoticeAlert" class="import-notice-alert hidden">
+                        <div class="import-alert-icon">
+                            <i class="fa-solid fa-circle-exclamation"></i>
+                        </div>
+                        <div class="import-alert-text">
+                            <strong>Atenção para salvar no Vercel (Nuvem):</strong>
+                            <p id="importNoticeMessage">Para que os arquivos fiquem salvos permanentemente no site sem precisar do seu computador ligado, adicione a variável <code>GITHUB_TOKEN</code> na Vercel ou informe seu token abaixo.</p>
+                        </div>
+                    </div>
+
                     <!-- Import Type Switcher -->
                     <div class="import-tabs">
                         <button id="tabImportFiles" class="import-tab active" type="button">
-                            <i class="fa-solid fa-file-pdf"></i> Arquivos Individuais / Em Massa
+                            <i class="fa-solid fa-file-pdf"></i> Arquivos (1 ou vários)
                         </button>
                         <button id="tabImportFolder" class="import-tab" type="button">
-                            <i class="fa-solid fa-folder"></i> Pasta Completa
+                            <i class="fa-solid fa-folder-tree"></i> Pasta Completa
                         </button>
                     </div>
 
@@ -307,11 +318,11 @@
                         <input type="file" id="fileInputFolder" webkitdirectory directory multiple class="hidden-input">
                         
                         <div class="drop-zone-content">
-                            <div class="drop-zone-icon">
+                            <div class="drop-zone-icon-circle">
                                 <i class="fa-solid fa-cloud-arrow-up"></i>
                             </div>
                             <h3 class="drop-zone-title" id="dropZoneTitle">Arraste seus PDFs aqui ou clique para selecionar</h3>
-                            <p class="drop-zone-desc" id="dropZoneDesc">Você pode selecionar vários arquivos de uma só vez (PDF)</p>
+                            <p class="drop-zone-desc" id="dropZoneDesc">Você pode selecionar vários arquivos de uma só vez (formato PDF)</p>
                             <button type="button" id="btnBrowseFiles" class="btn-browse">
                                 <i class="fa-solid fa-folder-open"></i> Selecionar Arquivos
                             </button>
@@ -322,7 +333,7 @@
                     <div id="importFileListContainer" class="import-files-container hidden">
                         <div class="import-files-header">
                             <span id="importFileCount">0 arquivo(s) selecionado(s)</span>
-                            <button type="button" id="btnClearImportList" class="btn-link-action">Limpar</button>
+                            <button type="button" id="btnClearImportList" class="btn-link-action">Limpar seleção</button>
                         </div>
                         <div id="importFileList" class="import-files-list"></div>
                         
@@ -339,22 +350,28 @@
                     <div class="cloud-settings-card">
                         <div class="cloud-settings-header" id="btnToggleGithubSettings">
                             <div class="cloud-status-indicator">
-                                <i class="fa-brands fa-github"></i>
-                                <span id="cloudStatusText">Sincronização com GitHub</span>
+                                <div class="github-badge-icon">
+                                    <i class="fa-brands fa-github"></i>
+                                </div>
+                                <div class="cloud-status-text-group">
+                                    <span class="cloud-status-title" id="cloudStatusTitle">Sincronização com GitHub</span>
+                                    <span class="cloud-status-subtitle" id="cloudStatusSubtitle">Verificando status de conexão...</span>
+                                </div>
                             </div>
                             <i class="fa-solid fa-chevron-down toggle-icon" id="githubSettingsChevron"></i>
                         </div>
                         <div id="githubSettingsBody" class="cloud-settings-body hidden">
                             <p class="cloud-settings-desc">
-                                Na nuvem (Vercel), arquivos enviados são salvos diretamente no repositório GitHub para atualizar o site automaticamente.
+                                Na Vercel (servidor online), os arquivos importados são comitados diretamente no GitHub para atualizar o site automaticamente. 
+                                <strong>Dica:</strong> Se você configurar a variável <code>GITHUB_TOKEN</code> na Vercel uma vez, nenhum usuário precisará preencher este campo!
                             </p>
                             <div class="github-token-input-group">
                                 <label for="githubTokenInput">GitHub Personal Access Token (para salvar/excluir direto no Vercel):</label>
                                 <div class="input-with-button">
-                                    <input type="password" id="githubTokenInput" placeholder="ghp_xxxxxxxxxxxx..." autocomplete="off">
-                                    <button type="button" id="btnSaveGithubToken" class="btn-save-token">Salvar</button>
+                                    <input type="password" id="githubTokenInput" placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxx..." autocomplete="off">
+                                    <button type="button" id="btnSaveGithubToken" class="btn-save-token">Salvar no Navegador</button>
                                 </div>
-                                <small class="token-help">O token fica salvo apenas no seu navegador para autorizar operações na nuvem.</small>
+                                <small class="token-help">O token fica salvo com segurança apenas no seu navegador para autorizar uploads e exclusões.</small>
                             </div>
                         </div>
                     </div>
