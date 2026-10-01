@@ -139,11 +139,6 @@ def get_safe_file_path(relative_path):
 @app.route("/api/index")
 @app.route("/api/index.py")
 def index():
-    if request.args.get("debug") == "1":
-        return jsonify({
-            "environ": {k: str(v) for k, v in request.environ.items() if not k.startswith("wsgi.") and not k.startswith("werkzeug.")},
-            "headers": dict(request.headers)
-        })
     """Serve the main chat-inspired application with inlined assets for cloud compatibility."""
     css_path = os.path.join(STATIC_DIR, "css", "style.css")
     js_path = os.path.join(STATIC_DIR, "js", "app.js")
