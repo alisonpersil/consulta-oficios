@@ -1133,141 +1133,6 @@ body {
 }
 
 /* ==========================================================================
-   Responsive Adjustments
-   ========================================================================== */
-@media (max-width: 768px) {
-    .navbar {
-        padding: 0 1rem;
-    }
-    .brand-subtitle, .stat-pill, .prompt-shortcut {
-        display: none;
-    }
-    .brand-divider, .brand-text {
-        display: none;
-    }
-    .brand-logo-img {
-        height: 32px;
-    }
-    .hero-title {
-        font-size: 1.6rem;
-    }
-    .documents-grid {
-        grid-template-columns: 1fr;
-    }
-    .modal-container {
-        height: 98vh;
-        border-radius: var(--radius-md);
-    }
-    .modal-header {
-        padding: 0 1rem;
-    }
-    .btn-modal-action span {
-        display: none;
-    }
-}
-
-/* ==========================================================================
-   Share Network Modal & Button Styles
-   ========================================================================== */
-.btn-share-network {
-    border-color: rgba(16, 163, 127, 0.4);
-    color: var(--accent-primary);
-}
-
-.btn-share-network:hover {
-    border-color: var(--accent-primary);
-    background-color: rgba(16, 163, 127, 0.12);
-    color: var(--accent-primary-hover);
-}
-
-.share-modal-container {
-    max-width: 580px;
-    height: auto !important;
-    max-height: 90vh;
-    overflow-y: auto;
-}
-
-.share-badge {
-    background-color: rgba(16, 163, 127, 0.15);
-    color: var(--accent-primary);
-    border: 1px solid rgba(16, 163, 127, 0.3);
-}
-
-.share-modal-body {
-    padding: 1.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-}
-
-.share-card {
-    background-color: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    padding: 1.1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.85rem;
-    transition: var(--transition);
-}
-
-.share-card:hover {
-    border-color: var(--border-focus);
-    box-shadow: var(--shadow-sm);
-}
-
-.share-card-header {
-    display: flex;
-    align-items: center;
-    gap: 0.85rem;
-}
-
-.share-card-icon {
-    width: 38px;
-    height: 38px;
-    border-radius: var(--radius-sm);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.1rem;
-    flex-shrink: 0;
-}
-
-.share-card-icon.ip-icon {
-    background-color: rgba(16, 163, 127, 0.15);
-    color: var(--accent-primary);
-}
-
-.share-card-icon.host-icon {
-    background-color: rgba(59, 130, 246, 0.15);
-    color: var(--accent-blue);
-}
-
-.share-card-info {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.share-card-title {
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.share-card-desc {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-}
-
-.share-input-group {
-    display: flex;
-    gap: 0.5rem;
-}
-
-.share-url-input {
-    flex: 1;
-/* ==========================================================================
    Action Buttons (Import, Delete, Danger)
    ========================================================================== */
 .btn-import {
@@ -1757,140 +1622,276 @@ body {
 }
 
 /* ==========================================================================
-   Responsive Design for iPhone and Android
+   Responsive Design for iPhone and Android (Locked & Native App-like Experience)
    ========================================================================== */
 @media (max-width: 768px) {
-    .navbar {
-        padding: 0 1rem;
-        height: 60px;
+    html, body {
+        width: 100%;
+        max-width: 100vw;
+        overflow-x: hidden !important;
+        position: relative;
     }
 
-    .brand-logo-img {
-        height: 32px;
-        max-width: 140px;
-    }
-
-    .brand-subtitle {
-        display: none;
-    }
-
-    .stat-pill {
-        display: none;
-    }
-
-    .btn-import-text {
-        display: none;
-    }
-
-    .btn-import {
-        padding: 0.5rem 0.75rem;
-        min-height: 40px;
-        min-width: 40px;
-    }
-
-    .nav-btn {
-        min-height: 40px;
-        min-width: 40px;
-        padding: 0.5rem 0.75rem;
+    .app-layout {
+        width: 100%;
+        max-width: 100vw;
+        overflow-x: hidden !important;
     }
 
     .main-container {
-        padding: 1.5rem 1rem 3rem 1rem;
+        width: 100%;
+        max-width: 100vw;
+        padding: 1rem 0.85rem 3.5rem 0.85rem;
+        overflow-x: hidden !important;
+        box-sizing: border-box;
     }
 
+    /* Navbar */
+    .navbar {
+        height: 56px;
+        padding: 0 0.85rem;
+        width: 100%;
+        max-width: 100vw;
+        box-sizing: border-box;
+    }
+
+    .brand-logo-img {
+        height: 30px;
+        max-width: 130px;
+    }
+
+    .brand-divider, 
+    .brand-subtitle, 
+    .stat-pill, 
+    .prompt-shortcut, 
+    .btn-import-text,
+    .nav-btn span {
+        display: none !important;
+    }
+
+    .nav-right {
+        gap: 0.4rem;
+    }
+
+    .nav-btn, .btn-import {
+        min-height: 38px;
+        min-width: 38px;
+        padding: 0.45rem 0.65rem;
+        justify-content: center;
+    }
+
+    /* Hero */
     .chat-hero {
-        padding: 1rem 0 1.5rem 0;
+        padding: 0.75rem 0 1.25rem 0;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .ai-avatar-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.75rem;
+        margin-bottom: 0.75rem;
     }
 
     .hero-title {
-        font-size: 1.6rem;
+        font-size: 1.45rem;
+        line-height: 1.3;
+        margin-bottom: 0.4rem;
+        padding: 0 0.25rem;
     }
 
     .hero-subtitle {
-        font-size: 0.9rem;
+        font-size: 0.85rem;
+        margin-bottom: 1.25rem;
+        padding: 0 0.25rem;
+    }
+
+    /* Search Box */
+    .prompt-box-wrapper {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
     }
 
     .prompt-box {
-        padding: 0.75rem 1rem;
-    }
-
-    .prompt-shortcut {
-        display: none;
+        width: 100%;
+        padding: 0.45rem 0.65rem 0.45rem 1rem;
+        border-radius: 16px;
+        box-sizing: border-box;
     }
 
     .prompt-input {
-        font-size: 0.95rem;
+        font-size: 0.92rem;
+        min-width: 0;
     }
 
-    /* Filter chips horizontal touch scroll */
-    .filter-chips {
-        display: flex;
+    .btn-send-prompt {
+        width: 34px;
+        height: 34px;
+        min-width: 34px;
+    }
+
+    /* Filter Chips - Horizontal smooth touch scroll */
+    .filter-chips-container {
+        width: 100%;
+        max-width: 100%;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
-        scroll-snap-type: x proximity;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        padding: 4px 0 8px 0;
         scrollbar-width: none;
-        padding-bottom: 6px;
-        gap: 0.4rem;
-        max-width: 100%;
+        flex-wrap: nowrap;
+        box-sizing: border-box;
     }
 
-    .filter-chips::-webkit-scrollbar {
+    .filter-chips-container::-webkit-scrollbar {
         display: none;
+    }
+
+    .chips-label {
+        display: none !important;
+    }
+
+    .chips-list {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 0.4rem;
+        flex-shrink: 0;
     }
 
     .chip {
         flex-shrink: 0;
-        scroll-snap-align: start;
-        padding: 0.45rem 0.85rem;
-        font-size: 0.8rem;
-        min-height: 38px;
+        padding: 0.4rem 0.75rem;
+        font-size: 0.78rem;
+        min-height: 36px;
+        white-space: nowrap;
     }
 
-    /* Cards view on mobile */
-    .doc-cards-grid {
-        grid-template-columns: 1fr;
-        gap: 1rem;
+    /* Toolbar */
+    .results-section {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    .results-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+        padding: 0.75rem 0;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .results-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+    }
+
+    .results-counter {
+        font-size: 0.85rem;
+    }
+
+    .toolbar-actions {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+
+    .sort-wrapper {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .sort-label {
+        display: none !important;
+    }
+
+    .sort-select {
+        width: 100%;
+        min-width: 0;
+        font-size: 0.82rem;
+        padding: 0.45rem 1.6rem 0.45rem 0.65rem;
+    }
+
+    /* Cards Grid - 100% full width column */
+    .documents-grid {
+        grid-template-columns: 1fr !important;
+        gap: 0.85rem;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .doc-card {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 1.1rem;
     }
 
     .doc-card-actions {
         display: grid;
         grid-template-columns: 1fr 1fr 1fr;
         gap: 0.4rem;
+        margin-top: 0.85rem;
     }
 
     .btn-card-action {
-        min-height: 42px;
-        font-size: 0.8rem;
-        padding: 0.5rem;
+        min-height: 40px;
+        font-size: 0.78rem;
+        padding: 0.45rem 0.25rem;
         justify-content: center;
+        white-space: nowrap;
     }
 
-    /* Preview modal on mobile */
+    /* Table - Horizontal scrolling wrapper */
+    .documents-table-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* Preview Modal Mobile */
     .modal-container {
         width: 100% !important;
         height: 100% !important;
         max-height: 100vh !important;
         border-radius: 0 !important;
+        margin: 0 !important;
+        display: flex;
+        flex-direction: column;
     }
 
     .modal-header {
-        padding: 0.85rem 1rem;
+        padding: 0.75rem 1rem;
     }
 
     .modal-doc-meta {
-        font-size: 0.75rem;
+        font-size: 0.72rem;
+    }
+
+    .btn-modal-action span {
+        display: none;
     }
 
     .mobile-pdf-notice {
-        display: block;
+        display: block !important;
     }
 
-    /* Import modal on mobile */
+    /* Import Modal Mobile */
     .import-modal-container {
-        width: 100%;
+        width: 100% !important;
         height: auto;
-        max-height: 92vh;
+        max-height: 94vh;
         border-radius: var(--radius-lg);
+        margin: 0.5rem;
     }
 
     .import-modal-body {
@@ -1900,34 +1901,23 @@ body {
     .drop-zone {
         padding: 1.5rem 1rem;
     }
+
+    .import-file-name {
+        max-width: 200px;
+    }
 }
 
 @media (max-width: 480px) {
     .brand-title {
-        font-size: 0.95rem;
-    }
-
-    .brand-divider {
-        display: none;
+        font-size: 0.92rem;
     }
 
     .hero-title {
-        font-size: 1.35rem;
+        font-size: 1.3rem;
     }
 
-    .results-toolbar {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 0.75rem;
-    }
-
-    .toolbar-right {
-        justify-content: space-between;
-        width: 100%;
-    }
-
-    .sort-select {
-        flex: 1;
+    .doc-metadata-panel {
+        grid-template-columns: 1fr !important;
     }
 }
 
