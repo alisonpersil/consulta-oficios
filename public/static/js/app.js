@@ -78,6 +78,7 @@ const importProgressLabel = document.getElementById('importProgressLabel');
 
 // Cloud / GitHub Settings Elements
 const btnToggleGithubSettings = document.getElementById('btnToggleGithubSettings');
+const cloudSettingsCard = document.getElementById('cloudSettingsCard');
 const githubSettingsBody = document.getElementById('githubSettingsBody');
 const githubSettingsChevron = document.getElementById('githubSettingsChevron');
 const githubTokenInput = document.getElementById('githubTokenInput');
@@ -967,25 +968,13 @@ async function checkSystemStatus() {
             if (githubTokenInput && savedToken) {
                 githubTokenInput.value = savedToken;
             }
-            if (cloudStatusTitle && cloudStatusSubtitle) {
-                if (data.is_vercel) {
-                    if (data.has_github_token) {
-                        cloudStatusTitle.innerHTML = '<span style="color: #10a37f;"><i class="fa-solid fa-circle-check"></i> Vercel Conectado ao GitHub</span>';
-                        cloudStatusSubtitle.textContent = 'GITHUB_TOKEN ativo na Vercel! Todos os usuários salvam permanentemente.';
-                        if (importNoticeAlert) importNoticeAlert.classList.add('hidden');
-                    } else if (savedToken) {
-                        cloudStatusTitle.innerHTML = '<span style="color: #10a37f;"><i class="fa-solid fa-circle-check"></i> Conectado (Token Salvo no Navegador)</span>';
-                        cloudStatusSubtitle.textContent = 'Token de acesso configurado neste dispositivo.';
-                        if (importNoticeAlert) importNoticeAlert.classList.add('hidden');
-                    } else {
-                        cloudStatusTitle.innerHTML = '<span style="color: #f59e0b;"><i class="fa-solid fa-triangle-exclamation"></i> GITHUB_TOKEN Necessário</span>';
-                        cloudStatusSubtitle.textContent = 'Configure GITHUB_TOKEN na Vercel para todos os usuários.';
-                    }
-                } else {
-                    cloudStatusTitle.innerHTML = '<span style="color: #10a37f;"><i class="fa-solid fa-laptop"></i> Servidor Local (Git Sync)</span>';
-                    cloudStatusSubtitle.textContent = 'Modo de desenvolvimento local conectado ao repositório.';
-                    if (importNoticeAlert) importNoticeAlert.classList.add('hidden');
-                }
+            if (data.has_github_token) {
+                // Token is already configured in Vercel environment! Hide the GitHub card completely
+                if (cloudSettingsCard) cloudSettingsCard.classList.add('hidden');
+                if (importNoticeAlert) importNoticeAlert.classList.add('hidden');
+            } else if (savedToken) {
+                if (cloudSettingsCard) cloudSettingsCard.classList.add('hidden');
+                if (importNoticeAlert) importNoticeAlert.classList.add('hidden');
             }
         }
     } catch (e) {
