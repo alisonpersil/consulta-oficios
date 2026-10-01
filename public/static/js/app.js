@@ -45,19 +45,9 @@ const modalDocMeta = document.getElementById('modalDocMeta');
 const pdfViewerFrame = document.getElementById('pdfViewerFrame');
 const modalLoading = document.getElementById('modalLoading');
 const btnModalClose = document.getElementById('btnModalClose');
-const btnModalOpenFolder = document.getElementById('btnModalOpenFolder');
 const btnModalDownload = document.getElementById('btnModalDownload');
 const btnModalNewTab = document.getElementById('btnModalNewTab');
 const toastContainer = document.getElementById('toastContainer');
-
-// Share Network Modal Elements
-const btnShareNetwork = document.getElementById('btnShareNetwork');
-const shareModal = document.getElementById('shareModal');
-const btnShareModalClose = document.getElementById('btnShareModalClose');
-const shareNetworkUrlInput = document.getElementById('shareNetworkUrlInput');
-const shareHostnameUrlInput = document.getElementById('shareHostnameUrlInput');
-const btnCopyNetworkUrl = document.getElementById('btnCopyNetworkUrl');
-const btnCopyHostnameUrl = document.getElementById('btnCopyHostnameUrl');
 
 // ==========================================================================
 // Initialization
@@ -181,44 +171,25 @@ function setupEventListeners() {
         modalLoading.classList.add('hidden');
     });
 
-    btnModalOpenFolder.addEventListener('click', () => {
-        if (state.activeModalDoc) {
-            openInFolder(state.activeModalDoc);
-        }
-    });
-
     btnModalDownload.addEventListener('click', () => {
         if (state.activeModalDoc) {
             downloadDocument(state.activeModalDoc);
         }
     });
-
-    // Share Network Modal Events
-    if (btnShareNetwork) {
-        btnShareNetwork.addEventListener('click', openShareModal);
-    }
-    if (btnShareModalClose) {
-        btnShareModalClose.addEventListener('click', closeShareModal);
-    }
-    if (shareModal) {
-        shareModal.addEventListener('click', (e) => {
-            if (e.target === shareModal) {
-                closeShareModal();
-            }
-        });
-    }
-    if (btnCopyNetworkUrl) {
-        btnCopyNetworkUrl.addEventListener('click', () => copyShareUrl(shareNetworkUrlInput, btnCopyNetworkUrl));
-    }
-    if (btnCopyHostnameUrl) {
-        btnCopyHostnameUrl.addEventListener('click', () => copyShareUrl(shareHostnameUrlInput, btnCopyHostnameUrl));
-    }
 }
 
 // ==========================================================================
 // Data Fetching & API
 // ==========================================================================
 async function loadDocuments() {
+    if (window.INITIAL_DOCS && Array.isArray(window.INITIAL_DOCS) && window.INITIAL_DOCS.length > 0) {
+        state.allDocuments = window.INITIAL_DOCS;
+        headerDocCount.textContent = `${window.INITIAL_DOCS.length} documentos`;
+        loadingState.classList.add('hidden');
+        applyFiltersAndRender();
+        return;
+    }
+
     loadingState.classList.remove('hidden');
     documentsCardsContainer.classList.add('hidden');
     documentsTableContainer.classList.add('hidden');
@@ -243,31 +214,11 @@ async function loadDocuments() {
     }
 }
 
-// Open file in Windows Explorer
-async function openInFolder(doc) {
-    showToast(`Localizando "${doc.name}" no Windows Explorer...`, 'info');
-    try {
-        const response = await fetch('/api/open-folder', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ relative_path: doc.relative_path, full_path: doc.full_path })
-        });
-        const data = await response.json();
-        if (data.success) {
-            showToast(data.message || 'Arquivo aberto no Explorador!', 'success');
-        } else {
-            showToast(data.message || 'Erro ao abrir pasta.', 'error');
-        }
-    } catch (error) {
-        console.error('Erro na requisição open-folder:', error);
-        showToast('Falha ao comunicar com o Explorador do Windows', 'error');
-    }
-}
-
 // Download file
 function downloadDocument(doc) {
     showToast(`Iniciando download de "${doc.name}"...`, 'info');
-    const downloadUrl = `/api/pdf/download/${encodeURIComponent(doc.relative_path)}`;
+    const pathParts = (doc.relative_path || doc.name).split('/').map(encodeURIComponent).join('/');
+    const downloadUrl = `/api/pdf/download/${pathParts}`;
     const a = document.createElement('a');
     a.href = downloadUrl;
     a.download = doc.name;
@@ -465,10 +416,6 @@ function renderCardsView() {
                     <i class="fa-solid fa-download"></i>
                     <span>Baixar</span>
                 </button>
-                <button class="btn-card-action btn-folder" title="Abrir pasta no Windows Explorer">
-                    <i class="fa-solid fa-folder-open"></i>
-                    <span>Ver na Pasta</span>
-                </button>
             </div>
         `;
 
@@ -476,7 +423,6 @@ function renderCardsView() {
         card.querySelector('.btn-preview').addEventListener('click', () => openPreviewModal(doc));
         card.querySelector('.doc-title').addEventListener('click', () => openPreviewModal(doc));
         card.querySelector('.btn-download').addEventListener('click', () => downloadDocument(doc));
-        card.querySelector('.btn-folder').addEventListener('click', () => openInFolder(doc));
 
         fragment.appendChild(card);
     });
@@ -518,9 +464,6 @@ function renderTableView() {
                     <button class="btn-table-action btn-table-download" title="Baixar arquivo">
                         <i class="fa-solid fa-download"></i>
                     </button>
-                    <button class="btn-table-action btn-table-folder" title="Ver na pasta (Windows Explorer)">
-                        <i class="fa-solid fa-folder-open"></i>
-                    </button>
                 </div>
             </td>
         `;
@@ -528,7 +471,6 @@ function renderTableView() {
         tr.querySelector('.btn-table-preview').addEventListener('click', () => openPreviewModal(doc));
         tr.querySelector('.table-doc-title').addEventListener('click', () => openPreviewModal(doc));
         tr.querySelector('.btn-table-download').addEventListener('click', () => downloadDocument(doc));
-        tr.querySelector('.btn-table-folder').addEventListener('click', () => openInFolder(doc));
 
         fragment.appendChild(tr);
     });
@@ -552,7 +494,8 @@ function openPreviewModal(doc) {
         <span><i class="fa-solid fa-hard-drive"></i> ${doc.size_formatted}</span>
     `;
 
-    const previewUrl = `/api/pdf/preview/${encodeURIComponent(doc.relative_path)}`;
+    const pathParts = (doc.relative_path || doc.name).split('/').map(encodeURIComponent).join('/');
+    const previewUrl = `/api/pdf/preview/${pathParts}`;
     btnModalNewTab.href = previewUrl;
 
     modalLoading.classList.remove('hidden');
@@ -567,72 +510,6 @@ function closeModal() {
     pdfViewerFrame.src = '';
     state.activeModalDoc = null;
     document.body.style.overflow = '';
-}
-
-// ==========================================================================
-// Share Modal Functions
-// ==========================================================================
-async function openShareModal() {
-    if (!shareModal) return;
-    shareModal.classList.remove('hidden');
-    shareModal.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
-
-    try {
-        const response = await fetch('/api/server-info');
-        if (response.ok) {
-            const data = await response.json();
-            if (shareNetworkUrlInput) shareNetworkUrlInput.value = data.network_url;
-            if (shareHostnameUrlInput) shareHostnameUrlInput.value = data.hostname_url;
-        }
-    } catch (err) {
-        console.error('Erro ao buscar dados do servidor:', err);
-    }
-}
-
-function closeShareModal() {
-    if (!shareModal) return;
-    shareModal.classList.add('hidden');
-    shareModal.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
-}
-
-function copyShareUrl(inputElement, buttonElement) {
-    if (!inputElement || !buttonElement) return;
-    const url = inputElement.value;
-    if (!url || url.includes('Carregando')) return;
-
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(url).then(() => {
-            handleCopiedState(buttonElement);
-        }).catch(() => {
-            fallbackCopy(inputElement, buttonElement);
-        });
-    } else {
-        fallbackCopy(inputElement, buttonElement);
-    }
-}
-
-function fallbackCopy(inputElement, buttonElement) {
-    inputElement.select();
-    inputElement.setSelectionRange(0, 99999);
-    try {
-        document.execCommand('copy');
-        handleCopiedState(buttonElement);
-    } catch (err) {
-        showToast('Não foi possível copiar automaticamente.', 'error');
-    }
-}
-
-function handleCopiedState(buttonElement) {
-    const originalHtml = buttonElement.innerHTML;
-    buttonElement.classList.add('copied');
-    buttonElement.innerHTML = '<i class="fa-solid fa-check"></i> <span>Copiado!</span>';
-    showToast('Link copiado para a área de transferência!', 'success');
-    setTimeout(() => {
-        buttonElement.classList.remove('copied');
-        buttonElement.innerHTML = originalHtml;
-    }, 2500);
 }
 
 // ==========================================================================

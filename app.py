@@ -128,12 +128,25 @@ def get_all_documents():
 
 def get_safe_file_path(relative_path):
     """Ensure relative path is safely within DOCS_DIR."""
-    safe_path = os.path.abspath(os.path.join(DOCS_DIR, relative_path))
-    if not safe_path.startswith(os.path.abspath(DOCS_DIR)):
-        return None
-    if not os.path.exists(safe_path) or not os.path.isfile(safe_path):
-        return None
-    return safe_path
+    import urllib.parse
+    import unicodedata
+
+    decoded_path = urllib.parse.unquote(relative_path).strip("/\\")
+    safe_path = os.path.abspath(os.path.join(DOCS_DIR, decoded_path))
+    if safe_path.startswith(os.path.abspath(DOCS_DIR)) and os.path.isfile(safe_path):
+        return safe_path
+
+    # Robust fallback: search by normalized filename ignoring accents
+    def strip_accents(text):
+        return ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn').lower()
+
+    target_clean = strip_accents(os.path.basename(decoded_path))
+    for root, _, files in os.walk(DOCS_DIR):
+        for f in files:
+            if strip_accents(f) == target_clean:
+                return os.path.join(root, f)
+
+    return None
 
 @app.route("/")
 @app.route("/api/index")
@@ -222,12 +235,14 @@ def preview_pdf(subpath):
     if not mimetype:
         mimetype = "application/pdf" if safe_path.lower().endswith(".pdf") else "application/octet-stream"
         
-    return send_file(
+    response = send_file(
         safe_path,
         mimetype=mimetype,
         as_attachment=False,
         download_name=os.path.basename(safe_path)
     )
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
 
 @app.route("/api/pdf/download/<path:subpath>")
 def download_pdf(subpath):
@@ -242,134 +257,14 @@ def download_pdf(subpath):
         download_name=os.path.basename(safe_path)
     )
 
-def get_network_ip():
-    """Detect the local machine IP on the LAN/Wi-Fi."""
-    # Method 1: Connect to known address (UDP routing table lookup, no traffic actually sent)
-    for target in [("8.8.8.8", 80), ("1.1.1.1", 80), ("192.168.1.1", 80), ("10.0.0.1", 80)]:
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            s.settimeout(0.3)
-            s.connect(target)
-            ip = s.getsockname()[0]
-            s.close()
-            if ip and not ip.startswith("127."):
-                return ip
-        except Exception:
-            pass
-
-    # Method 2: Hostname resolution fallback
-    try:
-        hostname = socket.gethostname()
-        for ip in socket.gethostbyname_ex(hostname)[2]:
-            if not ip.startswith("127."):
-                return ip
-    except Exception:
-        pass
-
-    return "127.0.0.1"
-
-def get_server_info(port=5001):
-    """Return dictionary with network URLs and hostname."""
-    try:
-        hostname = socket.gethostname()
-    except Exception:
-        hostname = "servidor"
-        
-    local_ip = get_network_ip()
-    
-    return {
-        "hostname": hostname,
-        "local_ip": local_ip,
-        "port": port,
-        "local_url": f"http://localhost:{port}",
-        "network_url": f"http://{local_ip}:{port}",
-        "hostname_url": f"http://{hostname.lower()}:{port}"
-    }
-
-@app.route("/api/server-info")
-def api_server_info():
-    """Return network configuration so clients and UI know the shareable URLs."""
-    port = int(os.environ.get("PORT", 5001))
-    info = get_server_info(port)
-    client_ip = request.remote_addr
-    info["client_ip"] = client_ip
-    info["is_local_client"] = client_ip in ("127.0.0.1", "::1", info["local_ip"])
-    return jsonify(info)
-
-@app.route("/api/open-folder", methods=["POST"])
-def open_folder():
-    """Trigger Windows Explorer to select/highlight the file."""
-    # Check if running in cloud / Vercel (no local desktop explorer available)
-    if os.environ.get("VERCEL") == "1" or sys.platform != "win32":
-        return jsonify({
-            "success": False,
-            "is_cloud": True,
-            "message": "O recurso 'Ver na Pasta' só funciona localmente no computador. Na web, utilize 'Visualizar' ou 'Baixar'."
-        })
-
-    # Check if request is from a remote machine on the network
-    client_ip = request.remote_addr
-    local_ip = get_network_ip()
-    if client_ip not in ("127.0.0.1", "::1", local_ip):
-        return jsonify({
-            "success": False,
-            "is_remote": True,
-            "message": "O recurso 'Ver na Pasta' só pode ser acionado diretamente no computador Servidor. Utilize os botões 'Visualizar' ou 'Baixar' no seu navegador."
-        })
-        
-    data = request.get_json(force=True, silent=True) or {}
-    rel_path = data.get("relative_path")
-    full_path = data.get("full_path")
-    
-    target_path = None
-    if rel_path:
-        target_path = get_safe_file_path(rel_path)
-    elif full_path:
-        abs_full = os.path.abspath(full_path)
-        if abs_full.startswith(os.path.abspath(DOCS_DIR)) and os.path.isfile(abs_full):
-            target_path = abs_full
-            
-    if not target_path or not os.path.exists(target_path):
-        return jsonify({"success": False, "message": "Arquivo não encontrado."}), 404
-
-    try:
-        subprocess.Popen(["explorer.exe", f"/select,{os.path.abspath(target_path)}"])
-            
-        return jsonify({
-            "success": True,
-            "message": f"Arquivo localizado no Explorador do Windows: {os.path.basename(target_path)}"
-        })
-    except Exception as e:
-        return jsonify({"success": False, "message": f"Erro ao abrir pasta: {str(e)}"}), 500
-
-def open_browser(port):
-    """Open browser after a short delay to allow server to start."""
-    import time
-    time.sleep(1.5)
-    webbrowser.open(f"http://localhost:{port}")
-
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
-    info = get_server_info(port)
-    
-    print("=" * 72)
-    print("           SISTEMA DE CONSULTA DE OFICIOS - PMO           ")
-    print("=" * 72)
-    print("\n  [+] SERVIDOR INICIADO COM SUCESSO E DISPONIVEL NA REDE!")
-    print("\n  [*] Acesso neste computador (Servidor):")
-    print(f"      {info['local_url']}")
-    print("\n  [+] LINK COMPARTILHAVEL PARA A REDE (qualquer colega na empresa):")
-    print(f"      IP:       {info['network_url']}")
-    print(f"      Hostname: {info['hostname_url']}")
-    print(f"\n  [*] Pasta de oficios:    {DOCS_DIR}")
-    print(f"  [*] Total de documentos: {len(get_all_documents())} arquivos indexados")
-    print("\n  [i] Compartilhe o link acima com outros computadores ou celulares")
-    print("      conectados na mesma rede/Wi-Fi da empresa.")
-    print("  [x] Para encerrar: feche esta janela ou pressione Ctrl+C\n")
-    print("=" * 72)
-    
-    # Open browser on local machine in background
-    threading.Thread(target=open_browser, args=(port,), daemon=True).start()
-    
-    # Listen on 0.0.0.0 so all computers on the network can connect
-    app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
+    print("=" * 70)
+    print("           SISTEMA DE CONSULTA DE OFÍCIOS - PMO")
+    print("=" * 70)
+    print(f"\n  [*] Servidor iniciado em: http://localhost:{port}")
+    print(f"  [*] Pasta de documentos: {DOCS_DIR}")
+    print(f"  [*] Documentos indexados: {len(get_all_documents())}\n")
+    print("=" * 70)
+    app.run(host="0.0.0.0", port=port, debug=False)
+
